@@ -1,0 +1,21 @@
+{
+  "name": "snagly",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "wxt build -b chrome --mv3 && wxt build -b firefox --mv3",
+    "check": "wxt prepare && tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "wxt": "0.21.5"
+  },
+  "dependencies": {
+    "@breezystack/lamejs": "1.2.7"
+  }
+}

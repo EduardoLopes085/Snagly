@@ -1,0 +1,20 @@
+{
+  "description": { "message": "Baixe mídia compatível da aba atual." },
+  "refresh": { "message": "Buscar novamente" },
+  "openTweet": { "message": "Clique na data do tuíte para abrir só essa publicação e busque novamente." },
+  "xPublicPost": { "message": "Consultar tuíte público" },
+  "xPublicPermission": { "message": "Para consultar o vídeo no X, permita o acesso a cdn.syndication.twimg.com." },
+  "xPublicEmpty": { "message": "Não foi possível encontrar um MP4 para download na publicação pública." },
+  "facebookPlayer": { "message": "Consultar player público do Facebook" },
+  "instagramAudio": { "message": "Se o Instagram fornecer o áudio separado, o arquivo de vídeo pode vir sem som." },
+  "facebookPlayerEmpty": { "message": "O player público não forneceu um MP4 para download." },
+  "rights": { "message": "Baixe apenas conteúdo que você tem direito de salvar." },
+  "scanning": { "message": "Buscando mídia nesta aba…" },
+  "empty": { "message": "Nenhuma mídia compatível encontrada. Reproduza a mídia e busque novamente." },
+  "protectedMedia": { "message": "Conteúdo protegido, não suportado." },
+  "streaming": { "message": "Streaming e fontes adaptativas estão indisponíveis nesta versão." },
+  "unavailable": { "message": "O Snagly não conseguiu ler esta aba." },
+  "download": { "message": "Baixar" },
+  "started": { "message": "Download iniciado. Acompanhe o progresso no navegador." },
+  "failed": { "message": "O navegador não conseguiu iniciar o download." }
+}

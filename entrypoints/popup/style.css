@@ -1,0 +1,30 @@
+
+:root { color-scheme: dark; font-family: 'Segoe UI', sans-serif; color: #e9edf5; background: #10131b; }
+* { box-sizing: border-box; }
+body { margin: 0; width: 600px; }
+body.window { width: auto; }
+main { padding: 24px; max-width: 1100px; margin: auto; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+h1 { font-size: 25px; letter-spacing: -.8px; margin: 0; }
+.tagline { color: #aab5ca; font-size: 13px; margin: 6px 0 0; }
+h2 { font-size: 19px; margin: 0 0 5px; }
+#media { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 18px; }
+li { background: #1a2030; border: 1px solid #30384c; border-radius: 16px; overflow: hidden; }
+video { display: block; width: 100%; height: 240px; background: #080b11; object-fit: contain; }
+.options { padding: 22px; }
+small { color: #9facc5; display: block; margin-bottom: 20px; }
+label { display: block; font-weight: 600; font-size: 14px; margin-top: 18px; }
+select { width: 100%; margin-top: 8px; background: #101725; border: 1px solid #52617e; border-radius: 9px; padding: 13px 10px; color: #edf3ff; font: inherit; cursor: pointer; }
+select:focus-visible, button:focus-visible { outline: 3px solid #83a9ff; outline-offset: 3px; }
+button { color: #dce8ff; background: #263653; border: 1px solid #52617e; border-radius: 8px; padding: 10px 14px; font: inherit; cursor: pointer; }
+button:disabled, select:disabled { opacity: .55; cursor: wait; }
+#status, .feedback { color: #b2c7ef; font-size: 14px; line-height: 1.5; }
+.feedback:empty, #status:empty { display: none; }
+#rights { color: #8995ac; font-size: 12px; margin-top: 22px; }
+[hidden] { display: none !important; }
+.close-option { display: flex; align-items: center; gap: 8px; color: #b2c7ef; font-weight: 400; }
+.close-option input { accent-color: #83a9ff; }
+#diagnostics { margin: 16px 0; color: #b2c7ef; font-size: 13px; }
+#diagnostics summary { cursor: pointer; }
+#diagnostic-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+@media(min-width: 740px) { li { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(280px,1fr); } video { height: 100%; min-height: 340px; max-height: 480px; } main { padding: 32px; } }

@@ -1,0 +1,20 @@
+{
+  "description": { "message": "Download supported media from the current tab." },
+  "refresh": { "message": "Scan again" },
+  "openTweet": { "message": "Click the post timestamp to open that post, then scan again." },
+  "xPublicPost": { "message": "Check public post on X" },
+  "xPublicPermission": { "message": "Allow access to cdn.syndication.twimg.com to look up the video on X." },
+  "xPublicEmpty": { "message": "No downloadable MP4 was found on the public post." },
+  "facebookPlayer": { "message": "Check Facebook’s public player" },
+  "instagramAudio": { "message": "If Instagram serves audio separately, the video file may be silent." },
+  "facebookPlayerEmpty": { "message": "The public player did not provide a downloadable MP4." },
+  "rights": { "message": "Download only content you have the right to save." },
+  "scanning": { "message": "Looking for media in this tab…" },
+  "empty": { "message": "No supported media found. Play the media and scan again." },
+  "protectedMedia": { "message": "Protected media is unsupported." },
+  "streaming": { "message": "Streaming and adaptive sources are unavailable in this build." },
+  "unavailable": { "message": "Snagly could not read this tab." },
+  "download": { "message": "Download" },
+  "started": { "message": "Download started. Follow its progress in your browser." },
+  "failed": { "message": "The browser could not start the download." }
+}

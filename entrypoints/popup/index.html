@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Snagly</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main>
+      <header><div><h1>Snagly</h1><p class="tagline">Seu vídeo, no formato que você precisa.</p></div><button id="refresh" type="button"></button></header>
+      <p id="status" role="status"></p>
+      <ul id="media"></ul>
+      <button id="public-player" type="button" hidden></button>
+      <details id="diagnostics" hidden><summary>Dados para diagnosticar esta busca</summary><p>Copie os dados abaixo se o vídeo continuar indisponível.</p><pre id="diagnostic-text"></pre></details>
+      <label class="close-option"><input id="close-after-start" type="checkbox" checked> Fechar o Snagly ao iniciar o download no navegador</label>
+      <p id="rights"></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
