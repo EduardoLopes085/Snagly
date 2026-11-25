@@ -77,6 +77,6 @@ As fixtures cobrem combinações anunciadas, não apenas casos isolados. Aceite 
 
 ## Distribuição e doações
 
-Snagly é o nome de trabalho. A licença do projeto precisa ser escolhida antes de liberar o código ao público. MPL-2.0, Apache-2.0, MIT e GPL-3.0 envolvem obrigações distintas. A revisão de publicação deve conferir termos das plataformas, direitos sobre a mídia, políticas vigentes de cada loja e declarações de privacidade coerentes com o comportamento. O plano inicial de distribuição é Firefox AMO e depois Chrome/Edge. GitHub Releases pode hospedar os artefatos adequados a cada navegador.
+Snagly é o nome de trabalho. O código do projeto usa MIT. As dependências mantêm suas próprias licenças. A revisão de publicação deve conferir termos das plataformas, direitos sobre a mídia, políticas vigentes de cada loja e declarações de privacidade coerentes com o comportamento. O plano inicial de distribuição é Firefox AMO e depois Chrome/Edge. GitHub Releases pode hospedar os artefatos adequados a cada navegador.
 
 Pix e link internacional podem vir no M8, com QR embutido e acesso discreto a partir da interface. A chave aleatória evita publicar CPF, telefone ou e-mail como chave. O pagador ainda pode receber dados de identificação bancária do recebedor. Confira política dos canais escolhidos e tratamento fiscal antes de ativar o recebimento.

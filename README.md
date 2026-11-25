@@ -138,6 +138,8 @@ Consulte o plano técnico e o registro de validação para acompanhar a arquitet
 
 Encontrou uma publicação que o Snagly não reconhece? Relate o navegador, o caminho usado para abrir o vídeo e o resultado da busca. Exemplos públicos ajudam a reproduzir o problema. Sugestões e pull requests também são bem-vindos.
 
+O guia de contribuição explica branches, testes e revisão. O roteiro do GitHub acompanha a configuração manual de regras, permissões e segurança. [Como contribuir](CONTRIBUTING.md) · [Configurar o GitHub](docs/github-setup.md) · [Política de segurança](SECURITY.md)
+
 ## 📄 Licenças
 
-A licença do projeto está pendente de definição. O codificador `@breezystack/lamejs` 1.2.7 é distribuído sob LGPL-3.0, com aviso incluído na extensão. Para substituir o codificador, altere a dependência e gere o build novamente. [Aviso da biblioteca](public/LAMEJS-LICENSE.txt) · [Código-fonte da biblioteca](https://github.com/shijinyu/lamejs)
+O código do Snagly é distribuído sob a licença MIT. O codificador `@breezystack/lamejs` 1.2.7 é distribuído sob LGPL-3.0, com aviso incluído na extensão. Para substituir o codificador, altere a dependência e gere o build novamente. [Licença MIT](LICENSE) · [Aviso da biblioteca](public/LAMEJS-LICENSE.txt) · [Código-fonte da biblioteca](https://github.com/shijinyu/lamejs)

@@ -1,0 +1,62 @@
+name: Relatar um problema
+description: Ajude a reproduzir uma falha do Snagly.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Para vulnerabilidades, consulte a política de segurança do repositório.
+        Confira suas capturas e logs antes de enviar, especialmente em páginas de DM.
+  - type: input
+    id: environment
+    attributes:
+      label: Navegador, versão e sistema operacional
+      placeholder: Chrome 143, Windows 11
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versão ou commit do Snagly
+      description: Informe a versão exibida pelo navegador ou o commit usado no build.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Onde aconteceu?
+      options:
+        - X / Twitter
+        - Instagram
+        - Facebook
+        - Interface, instalação ou outro fluxo
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      description: Descreva como abriu a mídia e acionou o Snagly.
+      placeholder: |
+        1. Abri um Reel pelo Explorar.
+        2. Cliquei com o botão direito e escolhi Baixar com Snagly.
+        3. Selecionei MP4.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Resultado esperado e resultado observado
+    validations:
+      required: true
+  - type: input
+    id: example
+    attributes:
+      label: Link público de exemplo
+      description: Opcional. Compartilhe apenas uma publicação que possa ser acessada publicamente.
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: Diagnóstico ou mensagem de erro
+      description: Se disponível, copie Dados para diagnosticar esta busca. Revise o conteúdo antes de enviar.
+      render: text

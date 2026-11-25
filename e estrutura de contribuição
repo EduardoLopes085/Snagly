@@ -1,0 +1,19 @@
+ .editorconfig                      |  12 [32m++++[m
+ .github/CODEOWNERS                 |   2 [32m+[m
+ .github/ISSUE_TEMPLATE/bug.yml     |  62 [32m+++++++++++++++++++[m
+ .github/ISSUE_TEMPLATE/config.yml  |   5 [32m++[m
+ .github/ISSUE_TEMPLATE/feature.yml |  23 [32m+++++++[m
+ .github/dependabot.yml             |  15 [32m+++++[m
+ .github/pull_request_template.md   |  24 [32m++++++++[m
+ .github/workflows/ci.yml           |  69 [32m+++++++++++++++++++++[m
+ .github/workflows/release.yml      |  63 [32m+++++++++++++++++++[m
+ CONTRIBUTING.md                    |  81 [32m++++++++++++++++++++++++[m
+ LICENSE                            |  21 [32m+++++++[m
+ README.md                          |   4 [32m+[m[31m-[m
+ SECURITY.md                        |  23 [32m+++++++[m
+ SPEC.md                            |   2 [32m+[m[31m-[m
+ docs/github-setup.md               | 123 [32m+++++++++++++++++++++++++++++++++++++[m
+ package-lock.json                  |   3 [32m+[m[31m-[m
+ package.json                       |   3 [32m+[m[31m-[m
+ public/SNAGLY-LICENSE.txt          |  21 [32m+++++++[m
+ 18 files changed, 552 insertions(+), 4 deletions(-)
