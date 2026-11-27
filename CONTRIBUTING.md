@@ -27,6 +27,18 @@ npm test
 npm run build
 ```
 
+Para alterações de detecção e navegação, execute também os testes de navegador
+depois do build.
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
+
+Essa suíte usa Chromium com a extensão compilada e páginas controladas para
+reproduzir os cenários das três redes. O CI executa a suíte na combinação Linux
+com Node 24 e anexa traces quando há falha.
+
 Para mudanças no player, na detecção, na conversão ou no download, teste também
 a extensão no navegador. Registre plataforma, navegador e o caminho usado para
 abrir o vídeo. O CI cobre os testes automatizados presentes no projeto.

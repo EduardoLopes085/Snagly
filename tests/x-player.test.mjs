@@ -46,3 +46,34 @@ test('public embed takes videos from the requested post and ignores quotes, GIFs
   id = '321';
   assert.deepEqual(await publicXVariants('123'), []);
 });
+
+test('public embed follows a quote only when its video matches the selected poster', async t => {
+  const media = url => ({ type:'video', video_info:{variants:[{content_type:'video/mp4',url}]} });
+  const other = videoUrl.replace('/456/', '/789/');
+  t.mock.method(globalThis,'fetch',async () => Response.json({
+    id_str:'123',mediaDetails:[media(other)],
+    quoted_tweet:{id_str:'234',mediaDetails:[media(videoUrl)]},
+    replies:[{id_str:'345',mediaDetails:[media(other.replace('/789/','/999/'))]}],
+  }));
+  assert.deepEqual(await publicXVariants('123','456'),[{url:videoUrl,quality:'360p'}]);
+  assert.deepEqual(await publicXVariants('123','999'),[]);
+  assert.deepEqual(await publicXVariants('123'),[{url:other,quality:'360p'}]);
+});
+
+test('public embed resolves a video-only quote when the outer tweet has no media', async t => {
+  t.mock.method(globalThis,'fetch',async () => Response.json({
+    id_str:'123',quoted_tweet:{id_str:'234',mediaDetails:[{
+      type:'video',video_info:{variants:[{content_type:'video/mp4',url:videoUrl}]},
+    }]},
+  }));
+  assert.deepEqual(await publicXVariants('123'),[{url:videoUrl,quality:'360p'}]);
+});
+
+test('public embed does not replace an unsupported outer video with a quote', async t => {
+  t.mock.method(globalThis,'fetch',async () => Response.json({
+    id_str:'123',mediaDetails:[{type:'video',video_info:{variants:[{content_type:'application/x-mpegURL',url:'https://video.twimg.com/stream.m3u8'}]}}],
+    quoted_tweet:{id_str:'234',mediaDetails:[{type:'video',video_info:{variants:[{content_type:'video/mp4',url:videoUrl}]}}]},
+  }));
+  assert.deepEqual(await publicXVariants('123'),[]);
+  assert.deepEqual(await publicXVariants('123','456'),[{url:videoUrl,quality:'360p'}]);
+});

@@ -22,10 +22,14 @@ export function socialPost(href: string): Post | undefined {
 }
 
 // executeScript serializes this function. Keep its helpers inside the isolated world.
-export function scanSocialPost(post: Post, pageUrl: string, html?: string) {
-  const sources = new Map<string, string>();
-  const result = () => [...sources].map(([url, quality]) => ({ url, quality }));
-  if (location.href !== pageUrl || [...document.querySelectorAll('video,audio')].some(
+export function scanSocialPost(post: Post, pageUrl: string, html?: string | null, selectionToken?: string | null) {
+  const sources = new Map<string, {quality:string;mediaKey?:string}>();
+  const result = () => [...sources].map(([url, source]) => ({ url, ...source }));
+  if (selectionToken && !/^[\da-f-]{36}$/.test(selectionToken)) return result();
+  const players = selectionToken && /^[\da-f-]{36}$/.test(selectionToken)
+    ? document.querySelectorAll('[data-snagly-selected="' + selectionToken + '"]')
+    : document.querySelectorAll('video,audio');
+  if (location.href !== pageUrl || [...players].some(
     el => (el as HTMLMediaElement).mediaKeys,
   )) return result();
   if (html && (post.site !== 'Instagram' || html.length > 3_000_000)) return result();
@@ -34,7 +38,7 @@ export function scanSocialPost(post: Post, pageUrl: string, html?: string) {
     'text/html',
   ) : document;
 
-  function add(value: unknown, quality = '') {
+  function add(value: unknown, quality = '', mediaKey?: string) {
     if (typeof value !== 'string' || value.length > 16384 || sources.size >= 60) return;
     let url: URL;
     try { url = new URL(value); } catch { return; }
@@ -46,44 +50,63 @@ export function scanSocialPost(post: Post, pageUrl: string, html?: string) {
     if (!allowed || !name || (name.includes('.') && !/\.mp4$/i.test(name))) return;
     if (['bytestart', 'byteend', 'range'].some(key => url.searchParams.has(key))) return;
     url.hash = '';
-    if (!sources.has(url.href) || quality) sources.set(url.href, quality);
+    const previous = sources.get(url.href);
+    if (!previous || quality) {
+      const identity = mediaKey ?? previous?.mediaKey;
+      sources.set(url.href, {quality,...(identity && {mediaKey:identity})});
+    }
   }
 
   type Fields = Record<string, unknown>;
   const object = (v: unknown): v is Fields => typeof v === 'object' && v !== null;
   const list = (v: unknown): Fields[] => Array.isArray(v) ? v.slice(0, 100).filter(object) : [];
   const height = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 16384 ? v + 'p' : '';
-  function readInstagram(media: Fields) {
-    for (const version of list(media.video_versions)) add(version.url, height(version.height));
-    add(media.video_url);
+  function readInstagram(media: Fields, fallback: string) {
+    if (media.is_drm_protected === true || media.is_live_stream === true) return;
+    const id = media.pk ?? media.id;
+    const identity = typeof id === 'string' || typeof id === 'number' ? String(id).slice(0,128) : fallback;
+    const mediaKey = 'Instagram:' + post.id + ':' + identity;
+    for (const version of list(media.video_versions)) add(version.url, height(version.height), mediaKey);
+    add(media.video_url, '', mediaKey);
   }
+  const selectedMediaId = post.site === 'X' && selectionToken
+    ? /\/(?:ext_tw_video_thumb|amplify_video_thumb)\/(\d+)\//.exec(
+      (players[0] as HTMLVideoElement | undefined)?.poster ?? '',
+    )?.[1] : undefined;
   function readObject(node: Fields) {
-    if (post.site === 'X' && (node.rest_id === post.id || node.id_str === post.id)) {
+    if (post.site === 'X') {
+      const target = node.rest_id === post.id || node.id_str === post.id;
+      if (!target && !selectedMediaId) return;
       const tweet = object(node.legacy) ? node.legacy : node;
+      if (tweet.is_drm_protected === true || tweet.is_live_stream === true) return;
       const entities = tweet.extended_entities;
       if (object(entities)) for (const media of list(entities.media)) {
-        if (!object(media.video_info)) continue;
+        if (media.is_drm_protected === true || media.is_live_stream === true || !object(media.video_info)) continue;
         for (const variant of list(media.video_info.variants)) {
           if (variant.content_type !== 'video/mp4' || typeof variant.url !== 'string') continue;
+          const identity = /^https:\/\/video\.twimg\.com\/(?:ext_tw_video|amplify_video|dm_video)\/(\d+)\//.exec(variant.url)?.[1];
+          if (selectedMediaId && identity !== selectedMediaId) continue;
           const size = /\/(\d{1,5})x(\d{1,5})\//.exec(variant.url);
           add(variant.url, height(Number(size?.[2])));
         }
       }
     }
     if (post.site === 'Instagram' && (node.shortcode === post.id || node.code === post.id)) {
-      readInstagram(node);
-      for (const child of list(node.carousel_media)) readInstagram(child);
-      if (object(node.edge_sidecar_to_children)) for (const edge of list(node.edge_sidecar_to_children.edges)) {
-        if (object(edge.node)) readInstagram(edge.node);
+      readInstagram(node, 'main');
+      for (const [index,child] of list(node.carousel_media).entries()) readInstagram(child, 'carousel-' + index);
+      if (object(node.edge_sidecar_to_children)) for (const [index,edge] of list(node.edge_sidecar_to_children.edges).entries()) {
+        if (object(edge.node)) readInstagram(edge.node, 'edge-' + index);
       }
     }
     if (post.site === 'Facebook' && (node.id === post.id || node.video_id === post.id)) {
       const legacy = object(node.videoDeliveryLegacyFields) ? node.videoDeliveryLegacyFields : node;
-      add(legacy.browser_native_hd_url ?? legacy.playable_url_quality_hd, 'HD');
-      add(legacy.browser_native_sd_url ?? legacy.playable_url, 'SD');
+      if (legacy.is_drm_protected === true || legacy.is_live_stream === true) return;
+      const mediaKey = 'Facebook:' + post.id;
+      add(legacy.browser_native_hd_url ?? legacy.playable_url_quality_hd, 'HD',mediaKey);
+      add(legacy.browser_native_sd_url ?? legacy.playable_url, 'SD',mediaKey);
       const fragment = node.videoDeliveryResponseFragment;
       if (object(fragment) && object(fragment.videoDeliveryResponseResult)) {
-        for (const format of list(fragment.videoDeliveryResponseResult.progressive_urls)) add(format.progressive_url);
+        for (const format of list(fragment.videoDeliveryResponseResult.progressive_urls)) add(format.progressive_url,'',mediaKey);
       }
     }
   }
@@ -93,6 +116,7 @@ export function scanSocialPost(post: Post, pageUrl: string, html?: string) {
   let visited = 0;
   function walk(v: unknown, depth: number) {
     if (++visited > 35000 || depth > 64 || !object(v)) return;
+    if (v.is_drm_protected === true || v.is_live_stream === true) return;
     readObject(v);
     for (const key in v) {
       if (visited >= 35000) break;
@@ -103,7 +127,7 @@ export function scanSocialPost(post: Post, pageUrl: string, html?: string) {
     const raw = script.firstChild?.nodeValue;
     if (!raw || raw.length > remaining || raw.length > 1_500_000) continue;
     remaining -= raw.length;
-    if (!raw.includes(post.id)) continue;
+    if (!raw.includes(post.id) && !(selectedMediaId && raw.includes(selectedMediaId))) continue;
     let root: unknown;
     try { root = JSON.parse(raw); } catch { continue; }
     walk(root, 0);
@@ -136,10 +160,11 @@ export function scanSocialPost(post: Post, pageUrl: string, html?: string) {
     const ids = new Set<string>();
     const videos = document.querySelectorAll<HTMLVideoElement>('video');
     for (const video of videos) {
+      if (selectionToken && !video.matches('[data-snagly-selected="' + selectionToken + '"]')) continue;
       const article = video.closest('article');
       const timestamp = article?.querySelector('time')?.closest('a');
-      if (article ? timestamp?.pathname.split('/status/')[1]?.split('/')[0] !== post.id
-        : !(canonicalMatches && videos.length === 1 && !document.querySelector('article'))) continue;
+      if (!selectedMediaId && (article ? timestamp?.pathname.split('/status/')[1]?.split('/')[0] !== post.id
+        : !(canonicalMatches && videos.length === 1 && !document.querySelector('article')))) continue;
       const id = /\/(?:ext_tw_video_thumb|amplify_video_thumb)\/(\d+)\//.exec(video.poster)?.[1];
       if (id) ids.add(id);
     }

@@ -47,6 +47,8 @@ No MP3, mantenha a janela aberta durante a conversão. Ela fecha automaticamente
 
 A cobertura depende das fontes que cada publicação disponibiliza. No Instagram, abra a publicação compartilhada pela DM para carregar o player quando o cartão da mensagem ainda não expuser os dados do vídeo.
 
+O clique com o botão direito identifica o player escolhido no feed, na publicação ou na conversa. Quando há vários vídeos elegíveis, o Snagly pede que você clique diretamente no desejado. A busca prioriza o player e sua fonte direta, consultando os metadados da publicação quando faltam resultados locais. Os endereços são validados antes de oferecer o download. A identificação em DM depende das fontes progressivas que o player ou a publicação compartilhada disponibilizam.
+
 Quando a primeira leitura do Instagram falha, o Snagly pode consultar imediatamente os metadados da publicação no próprio site. No X e no Facebook, os botões de consulta pública oferecem uma alternativa quando o player carregado não fornece um arquivo compatível.
 
 ## 📦 Instalação
@@ -117,13 +119,24 @@ npm test
 npm run build
 ```
 
-Os extratores relacionam a mídia à publicação, validam os domínios e limitam a análise dos dados da página. No Instagram e no X, a leitura dos dados do player pode ocorrer no contexto da página, com revalidação dos resultados pela extensão.
+Os extratores relacionam a mídia à publicação, validam os domínios e limitam a análise dos dados da página. Nas três redes, a leitura dos dados do player pode ocorrer no contexto da página, com revalidação dos resultados pela extensão.
+
+Os testes de navegador usam páginas controladas para reproduzir feeds, DMs, publicações, navegação interna, substituição do player e downloads. Para executá-los após o build, instale o Chromium do Playwright.
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
+
+O CI executa essa suíte em Linux com Node 24 e guarda traces de falhas. Os cenários controlados complementam a validação manual nos sites e nas sessões reais. O build de Firefox continua sendo gerado pela matriz, e a suíte de navegador desta etapa usa Chromium.
 
 A prévia é descarregada ao fechar a janela, e os recursos temporários da conversão são liberados para coleta pelo navegador. As pastas de build, caches e perfis de teste ficam fora do versionamento.
 
 Consulte o plano técnico e o registro de validação para acompanhar a arquitetura, os testes e os próximos marcos. [Plano técnico](SPEC.md) · [Validação inicial](docs/validacao-m1.md)
 
 ## 🗺️ Próximos passos
+
+O roadmap completo organiza as próximas funções, melhorias e critérios de conclusão, da confiabilidade à beta pública e ao processamento de mídia. [Roadmap do Snagly](ROADMAP.md)
 
 - [x] Download progressivo pelo gerenciador nativo.
 - [x] Menu de contexto com prévia e seleção de resolução.

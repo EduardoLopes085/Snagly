@@ -53,6 +53,27 @@ test('Instagram reads pending player props after SPA navigation without hydratio
   assert.deepEqual(mountedInstagramVariants(href,'CurrentCode'),[]);
 });
 
+test('Instagram snapshot transfers target JSON and sharing metadata while dropping scripts and unrelated records', async t => {
+  globalThis.location = new URL('https://www.instagram.com/reel/Target/');
+  t.after(() => { delete globalThis.location; });
+  t.mock.method(globalThis,'fetch',async () => new Response(
+    '<script>window.executable=true</script>'+
+    '<link rel="stylesheet" href="https://example.com/style.css">'+
+    '<link rel="canonical" href="https://www.instagram.com/reel/Target/">'+
+    '<meta property="og:url" content="https://www.instagram.com/reel/Target/">'+
+    '<script type="application/json">{"code":"Other"}</script>'+
+    '<script type="application/json">{"code":"Target","video_url":"https://video.fbcdn.net/clip.mp4"}</script>',
+    {headers:{'content-type':'text/html'}},
+  ));
+  const result=await instagramSnapshot('Target',location.href);
+  assert.equal(result.status,'ok');
+  assert.ok(result.html.includes('"code":"Target"'));
+  assert.ok(result.html.includes('canonical'));
+  assert.ok(!result.html.includes('"code":"Other"'));
+  assert.ok(!result.html.includes('executable'));
+  assert.ok(!result.html.includes('stylesheet'));
+});
+
 test('Instagram accepts signed opaque media URLs and rejects foreign hosts and partial streams', () => {
   const url = 'https://scontent.cdninstagram.com/v/opaque?sig=a%2Bb';
   assert.deepEqual(validatedInstagramVariants([
@@ -64,4 +85,13 @@ test('Instagram accepts signed opaque media URLs and rejects foreign hosts and p
     {url:'https://video.fbcdn.net/clip.mpd'},
     {url:'https://video.fbcdn.net/clip.mp4',quality:'<script>'},
   ]), [{url,quality:'720p'}, {url:'https://video.fbcdn.net/clip.mp4',quality:''}]);
+});
+
+test('Facebook player results keep quality labels and reject Instagram hosts and partial URLs', () => {
+  assert.deepEqual(validatedInstagramVariants([
+    {url:'https://video.fbcdn.net/clip.mp4',quality:'HD'},
+    {url:'https://scontent.cdninstagram.com/clip.mp4',quality:'720p'},
+    {url:'https://video.fbcdn.net/clip.mp4?bytestart=0',quality:'SD'},
+    {url:'https://user:secret@video.fbcdn.net/clip.mp4'},
+  ],'Facebook'),[{url:'https://video.fbcdn.net/clip.mp4',quality:'HD'}]);
 });

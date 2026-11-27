@@ -41,6 +41,36 @@ test('X selects MP4 variants from the target tweet', t => {
   ] }), [{ url, quality: '720p' }]);
 });
 
+test('Instagram aliases and tracking parameters preserve the public post identity', () => {
+  for (const path of [
+    '/reel/Sample_123/?gwpx=opaque',
+    '/reel/Sample_123/?dmpr=opaque',
+    '/reels/Sample_123/',
+    '/p/Sample_123/',
+    '/reel/Sample_123/?evlk=opaque',
+  ]) {
+    assert.deepEqual(socialPost('https://www.instagram.com'+path),{site:'Instagram',id:'Sample_123'});
+  }
+});
+
+test('Instagram deduplicates repeated progressive URLs without inventing a resolution', t => {
+  const url='https://scontent.cdninstagram.com/clip.mp4?sig=test';
+  const variants=[101,102,103].map(type=>({type,url}));
+  assert.deepEqual(scan(t,'https://www.instagram.com/reel/Sample/',{
+    data:[{__typename:'XIGMedia',pk:'42',code:'Sample',original_height:576,video_versions:variants}],
+  }),[{url,quality:'',mediaKey:'Instagram:Sample:42'}]);
+});
+
+test('Instagram ignores protected carousel records while preserving other items', t => {
+  const url='https://scontent.cdninstagram.com/allowed.mp4';
+  assert.deepEqual(scan(t,'https://www.instagram.com/p/Sample/',{
+    data:[{code:'Sample',carousel_media:[
+      {pk:'blocked',is_drm_protected:true,video_url:'https://scontent.cdninstagram.com/blocked.mp4'},
+      {pk:'allowed',video_url:url},
+    ]}],
+  }),[{url,quality:'',mediaKey:'Instagram:Sample:allowed'}]);
+});
+
 test('X associates server-rendered MP4 variants with the poster on the post', t => {
   const href = 'https://x.com/demo/status/123';
   const url = 'https://video.twimg.com/ext_tw_video/456/pu/vid/640x360/abc.mp4';
@@ -56,7 +86,7 @@ test('Instagram recognizes canonical reel aliases, signed sources and carousel v
     canonical: 'https://www.instagram.com/demo/reel/Code123/',
     data: [{ code: 'Code123', carousel_media: [{ video_versions: [{ height: 1080, url }] }] }],
     metas: [url, other, url.replace('cdninstagram.com', 'cdninstagram.com.evil.test')],
-  }), [{ url, quality: '1080p' }, { url: other, quality: '' }]);
+  }), [{ url, quality: '1080p', mediaKey:'Instagram:Code123:carousel-0' }, { url: other, quality: '' }]);
 });
 
 test('Facebook finds direct and nested delivery records while ignoring ranges and unrelated items', t => {
@@ -65,7 +95,7 @@ test('Facebook finds direct and nested delivery records while ignoring ranges an
     { id: '123', videoDeliveryLegacyFields: { browser_native_hd_url: url, browser_native_sd_url: url + '?bytestart=0' } },
     { id: '123', videoDeliveryResponseFragment: { videoDeliveryResponseResult: { progressive_urls: [{ progressive_url: url + '?q=2' }] } } },
     { id: '124', playable_url: url + '?v=124' },
-  ] }), [{ url, quality: 'HD' }, { url: url + '?q=2', quality: '' }]);
+  ] }), [{ url, quality: 'HD', mediaKey:'Facebook:123' }, { url: url + '?q=2', quality: '',mediaKey:'Facebook:123' }]);
 });
 
 test('protected players suppress supplemental metadata', t => {

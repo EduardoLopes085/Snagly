@@ -28,7 +28,17 @@ export async function instagramSnapshot(postId: string, pageUrl: string) {
       html += decoder.decode(value,{stream:true});
     }
     if (location.href !== pageUrl) return {status:'navigation-changed',html:''};
-    return {status:'ok',html:html + decoder.decode()};
+    html += decoder.decode();
+    // Transfer only the inert metadata that the post parser can use.
+    const metadata = (html.match(
+      /<script\b[^>]*type=["']application\/(?:ld\+)?json["'][^>]*>[\s\S]*?<\/script\s*>|<meta\b[^>]*>|<link\b[^>]*>/gi,
+    ) ?? []).filter(part => {
+      if (/^<script/i.test(part)) return part.includes(postId);
+      if (/^<link/i.test(part)) return /\brel=["']canonical["']/i.test(part);
+      return /\bproperty=["']og:(?:url|video(?::(?:type|url|secure_url))?)["']/i.test(part)
+        || /\bname=["']twitter:player:stream["']/i.test(part);
+    }).join('');
+    return {status:metadata ? 'ok' : 'metadata-empty',html:metadata};
   } catch {
     return {status:'request-failed',html:''};
   } finally {
