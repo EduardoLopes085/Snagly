@@ -1,7 +1,6 @@
 import { browser } from 'wxt/browser';
 
 const patterns = ['https://*.x.com/*','https://*.twitter.com/*','https://*.instagram.com/*','https://*.facebook.com/*'];
-const targets = new Map<number,{url:string;token?:string}>();
 
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message, sender) => {
@@ -27,28 +26,20 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     browser.contextMenus.create({id:'snagly-download',title:'Baixar com Snagly',contexts:['page','video','link','image'],documentUrlPatterns:patterns});
   });
-  browser.runtime.onMessage.addListener((message,sender) => {
-    if (sender.tab?.id === undefined || message?.type !== 'snagly-context' || typeof message.url !== 'string') return;
-    try {
-      const url = new URL(message.url);
-      if (url.protocol === 'https:' && /(^|\.)(x|twitter|instagram|facebook)\.com$/.test(url.hostname)) {
-        targets.set(sender.tab.id, {
-          url: url.href,
-          token: typeof message.token === 'string' && /^[\da-f-]{36}$/.test(message.token) ? message.token : undefined,
-        });
-      }
-    } catch { /* Invalid page data. */ }
-  });
-  browser.tabs.onRemoved.addListener(id => targets.delete(id));
-  browser.tabs.onUpdated.addListener((id,change) => { if(change.url) targets.delete(id); });
   browser.contextMenus.onClicked.addListener(async (info,tab) => {
     if(info.menuItemId !== 'snagly-download' || tab?.id === undefined) return;
     const params = new URLSearchParams({tab:String(tab.id)});
-    const context = targets.get(tab.id);
-    const selected = context?.url ?? info.linkUrl ?? info.pageUrl;
-    targets.delete(tab.id);
+    const [context] = await browser.scripting.executeScript({
+      target:{tabId:tab.id},
+      func:() => ({
+        pageUrl:location.href,
+        token:document.querySelector('[data-snagly-context]')?.getAttribute('data-snagly-context'),
+      }),
+    }).catch(() => []);
+    const selected = info.linkUrl ?? context?.result?.pageUrl ?? info.pageUrl;
     if(selected) params.set('post',selected);
-    if(context?.token) params.set('target',context.token);
+    const token = context?.result?.token;
+    if(token && /^[\da-f-]{36}$/.test(token)) params.set('target',token);
     await browser.windows.create({url:browser.runtime.getURL('/popup.html')+'?'+params,type:'popup',width:960,height:680});
   });
 });

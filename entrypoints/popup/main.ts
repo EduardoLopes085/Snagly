@@ -1,10 +1,11 @@
 import { browser } from 'wxt/browser';
 import { progressiveMedia } from '../../src/media';
-import { scanSocialPost, socialPost } from '../../src/social';
+import { scanSocialPost } from '../../src/social';
 import { publicFacebookPlayer } from '../../src/facebook-player';
 import { mountedXVariants, publicXVariants, validatedXVariants, xPublicOrigin } from '../../src/x-player';
-import { mountedInstagramVariants, validatedInstagramVariants } from '../../src/instagram-player';
+import { mountedMetaVariants, validatedInstagramVariants } from '../../src/instagram-player';
 import { instagramSnapshot } from '../../src/instagram-snapshot';
+import { resolveMediaTarget } from '../../src/target';
 
 const list = document.querySelector<HTMLUListElement>('#media')!;
 const status = document.querySelector<HTMLParagraphElement>('#status')!;
@@ -19,89 +20,20 @@ const rights = document.querySelector<HTMLParagraphElement>('#rights')!;
 const params = new URLSearchParams(location.search);
 const sourceTab = Number(params.get('tab'));
 const chosenPost = params.get('post');
+const selectionToken = crypto.randomUUID();
+let scanGeneration = 0;
 if (params.has('tab')) document.body.classList.add('window');
 const message = browser.i18n.getMessage.bind(browser.i18n);
 document.documentElement.lang = browser.i18n.getUILanguage();
 refresh.textContent = message('refresh');
 rights.textContent = message('rights');
 
-// Runs once in the browser's isolated world when the popup requests a scan.
-function scanDocument(preferredId?: string | null, contextToken?: string | null) {
-  const direct: { url: string; owner?: string }[] = [];
-  let protectedMedia = false;
-  let streaming = false;
-  const isX = /^(?:(?:www|mobile|m)\.)?(?:x|twitter)\.com$/.test(location.hostname);
-  const visiblePosts = new Set<string>();
-  const playingPosts = new Set<string>();
-
-  const elements = document.querySelectorAll<HTMLMediaElement>('video, audio');
-  for (const media of elements) {
-    if (media.mediaKeys) {
-      protectedMedia = true;
-      continue;
-    }
-
-    let owner: string | undefined;
-    if (isX && media.tagName === 'VIDEO') {
-      const link = media.closest('article')?.querySelector('time')?.closest('a');
-      if (link?.origin === location.origin) {
-        owner = /\/status\/(\d+)(?:\/|$)/.exec(link.pathname)?.[1];
-        const bounds = media.getBoundingClientRect();
-        if (owner && bounds.width && bounds.height && bounds.bottom > 0 && bounds.top < innerHeight &&
-            bounds.right > 0 && bounds.left < innerWidth) {
-          const permalink = link.origin + link.pathname;
-          visiblePosts.add(permalink);
-          if (!media.paused && !media.ended) playingPosts.add(permalink);
-        }
-      }
-    }
-
-    const source = media.currentSrc || media.src;
-    if (!source) continue;
-    if (source.startsWith('blob:') || /\.(m3u8|mpd)(?:[?#]|$)/i.test(source)) {
-      streaming = true;
-      continue;
-    }
-    if (direct.length < 100 && source.length <= 16384) direct.push({ url: source, owner });
-  }
-
-  const posts = playingPosts.size ? playingPosts : visiblePosts;
-  const activePost = posts.size === 1 ? [...posts][0] : undefined;
-  const pageId = preferredId ?? /\/status\/(\d+)(?:\/|$)/.exec(location.pathname)?.[1];
-  const selectedId = pageId ?? (activePost && /\/status\/(\d+)/.exec(activePost)?.[1]);
-  const urls = direct.filter(item => !isX || (selectedId && item.owner === selectedId)).map(item => item.url);
-  const posters = [...document.querySelectorAll('video[poster]')].map(video => (video as HTMLVideoElement).poster).filter(url => url.startsWith('https://'));
-  let instagramPost: string | undefined;
-  const instagram = /(^|\.)instagram\.com$/.test(location.hostname);
-  if (instagram) {
-    const marked = contextToken && /^[\da-f-]{36}$/.test(contextToken)
-      ? document.querySelector('[data-snagly-context="' + contextToken + '"]') : null;
-    const scopes = marked ? [marked.closest('article') ?? marked.closest('[role="dialog"]') ?? marked]
-      : [...document.querySelectorAll('video')].filter(video => {
-        const box = video.getBoundingClientRect();
-        return box.width > 0 && box.height > 0 && box.top < innerHeight && box.bottom > 0;
-      }).map(video => video.closest('article') ?? video.closest('[role="dialog"]'));
-    const links = new Set<string>();
-    for (const scope of scopes) {
-      for (const link of scope?.querySelectorAll<HTMLAnchorElement>('a[href]') ?? []) {
-        if (link.origin === location.origin && /\/(?:p|reels?|tv)\/[\w-]+\//.test(link.pathname)) links.add(link.href);
-      }
-    }
-    if (links.size === 1) instagramPost = [...links][0];
-  }
-  const playerInfo = [...document.querySelectorAll('video')].slice(0,8).map(video => ({
-    source: (video.currentSrc || video.src).startsWith('blob:') ? 'blob' : video.currentSrc || video.src ? 'url' : 'empty',
-    readyState: video.readyState,
-    react: Object.keys(video).some(key => key.startsWith('__reactFiber$') || key.startsWith('__reactProps$')),
-  }));
-  return { pageUrl: location.href, instagramPost, playerInfo, posters, urls, protectedMedia, streaming, isX, activePost };
-}
-
 async function scan(
   checkPublicPlayer = false,
   attempt = 0,
   previousSnapshot?: { key: string; status: string },
 ) {
+  const generation = ++scanGeneration;
   clearTimeout(retryTimer);
   retryTimer = undefined;
   diagnostics.hidden = true;
@@ -117,99 +49,134 @@ async function scan(
 
     const [injection] = await browser.scripting.executeScript({
       target: { tabId: tab.id },
-      func: scanDocument, args: [socialPost(chosenPost ?? tab.url ?? '')?.id ?? null, params.get('target')],
+      func: resolveMediaTarget, args: [chosenPost, params.get('target'), selectionToken],
     });
     const result = injection?.result;
     if (!result) throw new Error();
 
+    if (result.ambiguous) {
+      status.textContent = message('ambiguousMedia');
+      return;
+    }
     const pageUrl = result.pageUrl;
-    const pagePost = socialPost(chosenPost ?? '') ?? socialPost(pageUrl) ?? socialPost(result.instagramPost ?? '');
-    const permalink = pagePost ? tab.url : result.activePost;
-    const instagram = /^https:\/\/(?:www\.)?instagram\.com\//.test(pageUrl);
-    const post = pagePost ?? socialPost(permalink ?? '') ?? (instagram ? {site:'Instagram' as const,id:'video'} : undefined);
+    const instagram = result.site === 'Instagram';
+    const post = result.site ? {site:result.site,id:result.post?.id ?? 'video'} : undefined;
+    const target = {tabId:tab.id};
     let social: ReturnType<typeof scanSocialPost> = [];
+    let selectedPlayerSources = false;
     let snapshot = previousSnapshot;
     let snapshotStatus = snapshot?.status ?? 'not-requested';
     let mountedStatus = 'not-requested';
     if (post && !result.protectedMedia) {
-      const target = { tabId: tab.id };
-      const [metadata] = await browser.scripting.executeScript({
-        target, func: scanSocialPost, args: [post, pageUrl],
-      }).catch(() => []);
-      social = metadata?.result ?? [];
-      if (post.site === 'Instagram') {
-        const [player] = await browser.scripting.executeScript({
-          target, world:'MAIN', func:mountedInstagramVariants,
-          args:[pageUrl, post.id === 'video' ? null : post.id, params.get('target')],
+      // Prefer the selected player before parsing potentially large page JSON.
+      const playerTask = !result.selectionToken ? Promise.resolve([]) : post.site === 'X'
+        ? browser.scripting.executeScript({
+          target,world:'MAIN',func:mountedXVariants,
+          args:[post.id === 'video' ? null : post.id,pageUrl,result.selectionToken],
+        }).catch(() => [])
+        : browser.scripting.executeScript({
+          target,world:'MAIN',func:mountedMetaVariants,
+          args:[pageUrl,post.id === 'video' ? null : post.id,result.selectionToken,post.site],
         }).catch(() => []);
-        mountedStatus = player ? 'returned' : 'injection-failed';
-        const mounted = validatedInstagramVariants(player?.result);
-        if (mounted.length) social = mounted;
-        const snapshotKey = pageUrl + '|' + post.id;
-        if (!social.length && post.id !== 'video' && snapshot?.key !== snapshotKey) {
-          const [response] = await browser.scripting.executeScript({
-            target, func:instagramSnapshot, args:[post.id,pageUrl],
+      const [player] = await playerTask;
+      mountedStatus = player ? 'returned' : 'no-player-result';
+      const mounted = post.site === 'X' ? validatedXVariants(player?.result)
+        : validatedInstagramVariants(player?.result,post.site);
+      const direct = post.site === 'X' ? validatedXVariants(result.urls)
+        : validatedInstagramVariants(result.urls.map(url => ({url})),post.site);
+      social = mounted.length ? mounted : direct;
+      selectedPlayerSources = mounted.length > 0 || direct.length > 0;
+      if (!social.length && post.id !== 'video') {
+        const [metadata] = await browser.scripting.executeScript({
+          target,func:scanSocialPost,args:[post,pageUrl,null,result.selectionToken],
+        }).catch(() => []);
+        social = metadata?.result ?? [];
+      }
+      // Server-rendered metadata may contain several videos of a single tweet.
+      const posterId = /\/(?:ext_tw_video_thumb|amplify_video_thumb)\/(\d+)\//.exec(result.posters[0] ?? '')?.[1];
+      if (post.site === 'X' && posterId) social = social.filter(item => item.url.includes('/'+posterId+'/'));
+      const snapshotKey = pageUrl + '|' + post.id;
+      if (instagram && !social.length && post.id !== 'video' && snapshot?.key !== snapshotKey) {
+        const [response] = await browser.scripting.executeScript({
+          target,func:instagramSnapshot,args:[post.id,pageUrl],
+        }).catch(() => []);
+        snapshotStatus = response?.result?.status ?? 'injection-failed';
+        snapshot = {key:snapshotKey,status:snapshotStatus};
+        if (response?.result?.html) {
+          const [metadata] = await browser.scripting.executeScript({
+            target,func:scanSocialPost,args:[post,pageUrl,response.result.html,result.selectionToken],
           }).catch(() => []);
-          snapshotStatus = response?.result?.status ?? 'injection-failed';
-          snapshot = {key:snapshotKey,status:snapshotStatus};
-          if (response?.result?.html) {
-            const [metadata] = await browser.scripting.executeScript({
-              target, func:scanSocialPost, args:[post,pageUrl,response.result.html],
-            }).catch(() => []);
-            social = validatedInstagramVariants(metadata?.result);
-          }
+          social = validatedInstagramVariants(metadata?.result);
         }
       }
-      if (post.site === 'X' && !social.length) {
-        const [player] = await browser.scripting.executeScript({
-          target, world: 'MAIN', func: mountedXVariants, args: [post.id, pageUrl],
-        }).catch(() => []);
-        social = validatedXVariants(player?.result);
-        if (!social.length && !result.urls.some(url => progressiveMedia(url)) &&
-            await browser.permissions.contains({ origins: [xPublicOrigin] })) {
-          social = await publicXVariants(post.id);
-        }
+      if (post.site === 'X' && !social.length && post.id !== 'video' &&
+          await browser.permissions.contains({origins:[xPublicOrigin]}) && snapshot?.key !== snapshotKey) {
+        social = await publicXVariants(post.id,posterId);
+        snapshot = {key:snapshotKey,status:social.length ? 'ok' : 'empty'};
+        if (posterId) social = social.filter(item => item.url.includes('/'+posterId+'/'));
       }
-      if (post.site === 'Facebook' && !social.length && checkPublicPlayer) {
+      if (post.site === 'Facebook' && !social.length && checkPublicPlayer && post.id !== 'video' &&
+          snapshot?.key !== snapshotKey) {
         const [player] = await browser.scripting.executeScript({
-          target, func: publicFacebookPlayer, args: [post.id, pageUrl],
+          target,func:publicFacebookPlayer,args:[post.id,pageUrl],
         }).catch(() => []);
-        social = player?.result ?? [];
+        social = validatedInstagramVariants(player?.result,'Facebook')
+          .map(choice => ({...choice,mediaKey:'Facebook:'+post.id}));
+        snapshot = {key:snapshotKey,status:social.length ? 'ok' : 'empty'};
       }
+    }
+    const [current] = await browser.scripting.executeScript({
+      target,
+      func:(token: string | null) => {
+        const player = token && document.querySelector<HTMLVideoElement>('[data-snagly-selected="' + token + '"]');
+        return {pageUrl:location.href,selected:!!player,poster:player ? player.poster : ''};
+      },
+      args:[result.selectionToken],
+    });
+    if (generation !== scanGeneration) return;
+    if (current?.result?.pageUrl !== pageUrl) {
+      status.textContent = message('pageChanged');
+      return;
+    }
+    if (result.selectionToken && ((!current.result.selected && !result.post) ||
+        (result.posters[0] && current.result.poster && current.result.poster !== result.posters[0]))) {
+      status.textContent = message('playerChanged');
+      return;
     }
     const choicesForDisplay: Choice[] = [];
     let count = 0;
     const seen = new Set<string>();
-    const choices = social.length ? social : (instagram ? [] : result.urls.map(url => ({ url, quality: '' })));
-    for (const { url, quality } of choices) {
+    const choices: {url:string;quality:string;mediaKey?:string}[] = social.length ? social
+      : (result.site ? [] : result.urls.map(url => ({ url, quality: '' })));
+    for (const { url, quality, mediaKey } of choices) {
       const candidate = progressiveMedia(url) ?? (post && social.length
         ? { url, filename: post.site + '-' + post.id + '.mp4', host: new URL(url).host } : undefined);
       if (!candidate || seen.has(candidate.url)) continue;
       seen.add(candidate.url);
-      choicesForDisplay.push({ ...candidate, quality });
+      choicesForDisplay.push({ ...candidate, quality, mediaKey:selectedPlayerSources ? selectionToken : mediaKey });
       count++;
     }
 
     const groups = groupChoices(choicesForDisplay);
     for (const group of groups) addDownload(group, result.posters);
-    if (instagram && !count && !result.protectedMedia && attempt < 3) {
+    if (result.site && !count && !result.protectedMedia && attempt < 3) {
       status.textContent = message('scanning');
       retryTimer = setTimeout(() => void scan(checkPublicPlayer, attempt + 1, snapshot), [500, 1000, 2000][attempt]);
       return;
     }
-    const notices = [count ? '' : message('empty')];
-    if (!count && result.isX && !post) notices.push(message('openTweet'));
+    const notices = [count || result.protectedMedia ? '' : message('empty')];
+    if (!count && result.site === 'X' && !result.post) notices.push(message('openTweet'));
     if (post?.site === 'Instagram' && count) notices.push(message('instagramAudio'));
     if (result.protectedMedia) notices.push(message('protectedMedia'));
     if (result.streaming && !social.length && !instagram) notices.push(message('streaming'));
-    if ((post?.site === 'Facebook' || post?.site === 'X') && !count && !result.protectedMedia) {
+    if ((post?.site === 'Facebook' || post?.site === 'X') && post.id !== 'video' && !count && !result.protectedMedia) {
       lookupSite = post.site;
       publicPlayer.textContent = message(post.site === 'X' ? 'xPublicPost' : 'facebookPlayer');
       publicPlayer.hidden = checkPublicPlayer;
       if (checkPublicPlayer) notices.push(message(post.site === 'X' ? 'xPublicEmpty' : 'facebookPlayerEmpty'));
     }
     status.textContent = notices.filter(Boolean).join(' ');
-    if (instagram && !count) {
+    if (result.site && !count) {
       diagnostics.hidden = false;
       diagnosticText.textContent = JSON.stringify({
         version:browser.runtime.getManifest().version,
@@ -222,13 +189,13 @@ async function scan(
       },null,2);
     }
   } catch {
-    status.textContent = message('unavailable');
+    if (generation === scanGeneration) status.textContent = message('unavailable');
   } finally {
-    refresh.disabled = retryTimer !== undefined;
+    if (generation === scanGeneration) refresh.disabled = retryTimer !== undefined;
   }
 }
 
-type Choice = NonNullable<ReturnType<typeof progressiveMedia>> & { quality: string };
+type Choice = NonNullable<ReturnType<typeof progressiveMedia>> & { quality: string; mediaKey?: string };
 
 function releasePreviews() {
   for (const preview of list.querySelectorAll('video')) {
@@ -240,6 +207,7 @@ function releasePreviews() {
 }
 
 window.addEventListener('pagehide', () => {
+  scanGeneration++;
   clearTimeout(retryTimer);
   retryTimer = undefined;
   releasePreviews();
@@ -280,12 +248,13 @@ function groupChoices(choices: Choice[]) {
   for (const choice of choices) {
     const url = new URL(choice.url);
     const mediaId = /\/(?:ext_tw_video|amplify_video)\/(\d+)\//.exec(url.pathname)?.[1];
-    const key = mediaId ? 'x-' + mediaId : url.origin + url.pathname;
+    const key = choice.mediaKey ?? (mediaId ? 'x-' + mediaId : url.origin + url.pathname);
     const group = groups.get(key) ?? [];
     if (!group.some(item => item.quality === choice.quality && (choice.quality || item.url === choice.url))) group.push(choice);
     groups.set(key, group);
   }
-  return [...groups.values()].map(group => group.sort((a,b) => parseInt(b.quality || '0') - parseInt(a.quality || '0')));
+  const rank = (quality: string) => quality === 'HD' ? 720 : quality === 'SD' ? 360 : parseInt(quality || '0');
+  return [...groups.values()].map(group => group.sort((a,b) => rank(b.quality) - rank(a.quality)));
 }
 
 function addDownload(choices: Choice[], posters: string[]) {
@@ -312,6 +281,15 @@ function addDownload(choices: Choice[], posters: string[]) {
   const resolution = document.createElement('select');
   resolution.append(new Option('Escolha a resolução para baixar', ''));
   for (const [index, choice] of choices.entries()) resolution.append(new Option(choice.quality || 'Original', String(index)));
+  preview.addEventListener('loadedmetadata', () => {
+    const index = choices.findIndex(choice => choice.url === preview.src);
+    const choice = choices[index];
+    const option = resolution.options[index + 1];
+    if (choice && option && !choice.quality && preview.videoHeight > 0) {
+      choice.quality = preview.videoHeight + 'p';
+      option.textContent = choice.quality;
+    }
+  }, {once:true});
   videoLabel.append(resolution);
   const audioLabel = document.createElement('label');
   audioLabel.textContent = 'Áudio · MP3';

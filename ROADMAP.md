@@ -15,11 +15,15 @@ O código já oferece menu de contexto, janela com prévia, versões MP4 agrupad
 no X, conversão local para MP3 e entrega ao gerenciador de downloads do navegador.
 Há extratores de X, Instagram e Facebook, consulta aos metadados do Instagram,
 diagnóstico de busca e configurações de CI e empacotamento de releases.
+A primeira rodada de confiabilidade acrescentou seleção do player clicado,
+agrupamento por mídia e testes de navegador em Chromium com páginas controladas,
+navegação interna e verificação do arquivo entregue pelo download nativo.
 
 A conversão MP3 atual decodifica o áudio em memória e aceita entradas de até
 64 MB e duração de até dez minutos. O suporte aos sites depende das fontes
-progressivas disponíveis. Instalação pelas lojas, testes completos de navegador
-no CI, união de faixas e retomada persistente precisam evoluir.
+progressivas disponíveis. Instalação pelas lojas, validação de sessões reais,
+cobertura de testes de navegador em Firefox, união de faixas e retomada
+persistente precisam evoluir.
 
 ## Experiência que queremos entregar
 

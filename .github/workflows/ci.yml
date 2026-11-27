@@ -45,6 +45,20 @@ jobs:
         run: npm test
       - name: Gerar extensões Chrome e Firefox
         run: npm run build
+      - name: Instalar Chromium para os testes da extensão
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 24
+        run: npx playwright install --with-deps chromium
+      - name: Testar detecção no navegador e navegação interna
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 24
+        run: npm run test:e2e
+      - name: Guardar diagnóstico dos testes de navegador
+        if: failure() && matrix.os == 'ubuntu-latest' && matrix.node == 24
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diagnostico-e2e
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Disponibilizar builds para teste manual
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
