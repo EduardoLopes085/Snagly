@@ -125,6 +125,8 @@ Consulte o plano técnico e o registro de validação para acompanhar a arquitet
 
 ## 🗺️ Próximos passos
 
+O roadmap completo organiza as próximas funções, melhorias e critérios de conclusão, da confiabilidade à beta pública e ao processamento de mídia. [Roadmap do Snagly](ROADMAP.md)
+
 - [x] Download progressivo pelo gerenciador nativo.
 - [x] Menu de contexto com prévia e seleção de resolução.
 - [x] Conversão local para MP3.
